@@ -1,0 +1,19 @@
+{
+  "name": "Quantum - Mint, Stake, Battle on Monad",
+  "short_name": "Quantum",
+  "description": "Mint NFTs, Stake QTM, PvP Battles, Complete Quests on Monad",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#040810",
+  "theme_color": "#00f0ff",
+  "orientation": "portrait-primary",
+  "categories": ["games", "finance"],
+  "icons": [
+    {
+      "src": "https://peach-fascinating-dragonfly-692.mypinata.cloud/ipfs/bafybeifys4axhdlhmupjqlqbnocyeqtm3zojd7x6d4clthuwzhy47ygll4?pinataGatewayToken=bWYA3wgNwzuNFYwibilk9VG-RKvTcJ336mxOMdrpDzaD_vg5zmcufW_DY1vfQr4t",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
