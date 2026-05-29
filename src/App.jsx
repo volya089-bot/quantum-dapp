@@ -317,7 +317,7 @@ export default function App() {
   const tabs = [
     { id: "home", l: "HOME" }, { id: "mint", l: "🎨MINT" }, { id: "stake", l: "🏦STK" },
     { id: "quest", l: "🗺️Q" }, { id: "pvp", l: "⚔️PVP" }, { id: "leader", l: "🏆TOP" },
-    { id: "ref", l: "🤝REF" }, { id: "my-nfts", l: "🖼️NFTs" }, { id: "bridge", l: "🌐" }, { id: "vly", l: "💎QTM" },
+    { id: "ref", l: "🤝REF" }, { id: "my-nfts", l: "🖼️NFTs" }, { id: "bridge", l: "🌐" }, { id: "vly", l: "💎VLY" },
   ];
 
   // ═══ STATS BAR ═══
