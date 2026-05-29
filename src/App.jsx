@@ -11,7 +11,7 @@ const C = {
 };
 const L = {
   x: "https://x.com/volya089", tg: "https://t.me/VolyaUAOfficiale",
-  site: "https://closefast.tech/", scan: "https://monadscan.com/address/",
+  site: "https://closefast.tech/", scan: "https://monadexplorer.com/address/",
   vly: "https://dexscreener.com/monad/0x8aa57ccc34e14ab5404fd4e3481babc047ed54e6",
 };
 const LOGO = "https://peach-fascinating-dragonfly-692.mypinata.cloud/ipfs/bafybeifys4axhdlhmupjqlqbnocyeqtm3zojd7x6d4clthuwzhy47ygll4?pinataGatewayToken=bWYA3wgNwzuNFYwibilk9VG-RKvTcJ336mxOMdrpDzaD_vg5zmcufW_DY1vfQr4t";
@@ -122,6 +122,13 @@ export default function App() {
   const [qtmBal, setQtmBal] = useState("0");
   const [nftBal, setNftBal] = useState("0");
   const [nftSupply, setNftSupply] = useState("0");
+  const [qtmCirculating, setQtmCirculating] = useState("—");
+  const [qtmBurnedAmt, setQtmBurnedAmt] = useState("0");
+  const [poolStaking, setPoolStaking] = useState("—");
+  const [poolGame, setPoolGame] = useState("—");
+  const [blockNum, setBlockNum] = useState(null);
+  const [topNFTs, setTopNFTs] = useState([]);
+  const [creationFee, setCreationFee] = useState("0");
   const [mintPrice, setMintPrice] = useState("0");
   const [stakeInfo, setStakeInfo] = useState(null);
   const [pendingRew, setPendingRew] = useState("0");
@@ -156,6 +163,50 @@ export default function App() {
   useEffect(() => { const p = new URLSearchParams(window.location.search); const r = p.get("ref"); if (r) localStorage.setItem("qtm_referrer", r); }, []);
   useEffect(() => { const l = localStorage.getItem("qtm_daily_last"); const s = parseInt(localStorage.getItem("qtm_daily_streak") || "0"); setDailyClaimed(l === new Date().toDateString()); setDailyDay(s % 7); }, []);
   useEffect(() => { const load = async () => { if (!window.ethers) return; try { const prov = new window.ethers.JsonRpcProvider("https://rpc.monad.xyz"); const nft = new window.ethers.Contract(C.NFT, NFT_ABI, prov); const [sup, prMON] = await Promise.all([nft.totalSupply().catch(() => 0n), nft.mintPriceMON().catch(() => 0n)]); setNftSupply(String(sup)); setMintPrice(String(prMON)); } catch(e) { console.warn("p:", e); } }; const t = setTimeout(load, 800); return () => clearTimeout(t); }, []);
+
+  useEffect(() => {
+    const loadGlobal = async () => {
+      if (!window.ethers) return;
+      try {
+        const prov = new window.ethers.JsonRpcProvider("https://rpc.monad.xyz");
+        const fmtM = v => (parseFloat(window.ethers.formatEther(v))/1e6).toFixed(1)+"M";
+        const QA = ["function totalSupply() view returns (uint256)","function totalBurned() view returns (uint256)","function getPoolsInfo() view returns (uint256,uint256,uint256)"];
+        const NA = ["function totalSupply() view returns (uint256)","function ownerOf(uint256) view returns (address)","function nftData(uint256) view returns (uint8,uint256,uint256,uint256,uint256,uint256,uint256,string)"];
+        const FA = ["function creationFeeMON() view returns (uint256)"];
+        const qtmC = new window.ethers.Contract(C.QTM, QA, prov);
+        const nftC = new window.ethers.Contract(C.NFT, NA, prov);
+        const facC = new window.ethers.Contract(C.FACTORY, FA, prov);
+        const blk = await prov.getBlockNumber();
+        setBlockNum(blk.toLocaleString());
+        const [ts, tb, pi, fee] = await Promise.all([qtmC.totalSupply().catch(()=>0n),qtmC.totalBurned().catch(()=>0n),qtmC.getPoolsInfo().catch(()=>[0n,0n,0n]),facC.creationFeeMON().catch(()=>0n)]);
+        const circ = ts - pi[0] - pi[1] - pi[2];
+        setQtmCirculating(fmtM(circ > 0n ? circ : ts));
+        setQtmBurnedAmt(fmtM(tb));
+        setPoolStaking(fmtM(pi[0]));
+        setPoolGame(fmtM(pi[1]));
+        setCreationFee(window.ethers.formatEther(fee));
+        const sup = Number(await nftC.totalSupply().catch(()=>0n));
+        if (sup > 0) {
+          const nfts = [];
+          for (let i = 1; i <= sup; i++) {
+            try {
+              const [owner, d] = await Promise.all([nftC.ownerOf(i).catch(()=>"?"),nftC.nftData(i).catch(()=>null)]);
+              if (d) nfts.push({id:i,owner,rarity:Number(d[0]),power:Number(d[1]),speed:Number(d[2]),luck:Number(d[3]),mintTime:Number(d[4])});
+            } catch {}
+          }
+          nfts.sort((a,b)=>b.power-a.power);
+          setTopNFTs(nfts);
+        }
+      } catch(e) { console.warn("globalLoad:", e); }
+    };
+    loadGlobal();
+    const iv = setInterval(async()=>{
+      if(!window.ethers) return;
+      const prov = new window.ethers.JsonRpcProvider("https://rpc.monad.xyz");
+      prov.getBlockNumber().then(b=>setBlockNum(b.toLocaleString())).catch(()=>{});
+    }, 12000);
+    return () => clearInterval(iv);
+  }, []);
 
 
   useEffect(() => {
@@ -230,7 +281,7 @@ export default function App() {
   const tabs = [
     { id: "home", l: "HOME" }, { id: "mint", l: "🎨MINT" }, { id: "stake", l: "🏦STK" },
     { id: "quest", l: "🗺️Q" }, { id: "pvp", l: "⚔️PVP" }, { id: "leader", l: "🏆TOP" },
-    { id: "ref", l: "🤝REF" }, { id: "my-nfts", l: "🖼️NFTs" }, { id: "bridge", l: "🌐" }, { id: "vly", l: "💎" },
+    { id: "ref", l: "🤝REF" }, { id: "my-nfts", l: "🖼️NFTs" }, { id: "bridge", l: "🌐" }, { id: "vly", l: "💎QTM" },
   ];
 
   // ═══ STATS BAR ═══
@@ -263,9 +314,16 @@ export default function App() {
         <div className="flex items-center gap-2 cursor-pointer" onClick={() => setTab("home")}>
           <img src={LOGO} alt="" className="w-6 h-6 rounded-full border-2 border-quantum-cyan" onError={(e) => { e.target.style.display = "none"; }} />
           <span className="text-sm font-black tracking-widest gradient-text from-quantum-cyan to-quantum-purple hidden sm:inline">QUANTUM</span>
+          <span className="hidden sm:inline text-[8px] px-1.5 py-0.5 rounded bg-quantum-purple/10 text-quantum-purple border border-quantum-purple/20 font-bold tracking-wider">MONAD</span>
           <span className="text-sm font-black tracking-widest gradient-text from-quantum-cyan to-quantum-purple sm:hidden">QTM</span>
         </div>
 
+        {blockNum && (
+          <div className="hidden lg:flex items-center gap-1 px-2 py-1 rounded-lg bg-quantum-purple/5 border border-quantum-purple/20">
+            <span className="w-1.5 h-1.5 rounded-full bg-quantum-green animate-pulse inline-block"></span>
+            <span className="text-[9px] text-gray-500 font-mono">#{blockNum}</span>
+          </div>
+        )}
         {/* QTM Balance in header */}
         {wallet && qtmBal !== "0" && (
           <div className="hidden lg:flex items-center gap-1 px-3 py-1.5 rounded-lg bg-quantum-cyan/5 border border-quantum-cyan/20">
@@ -328,6 +386,20 @@ export default function App() {
 
           {installPrompt && <button onClick={() => { installPrompt.prompt(); setInstallPrompt(null); }} className="mb-4 px-4 py-2 rounded-lg bg-quantum-purple/10 border border-quantum-purple/30 text-quantum-purple text-xs font-bold">📱 Install App</button>}
 
+          {/* Global On-Chain Stats */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 max-w-2xl w-full mx-auto mb-3">
+            {[
+              {v: nftSupply+"/10K", l: "NFTs Minted", c: "text-quantum-gold"},
+              {v: qtmCirculating, l: "QTM Circulating", c: "text-quantum-cyan"},
+              {v: poolStaking, l: "Staking Pool", c: "text-quantum-green"},
+              {v: poolGame, l: "Game Rewards", c: "text-quantum-purple"},
+            ].map(s => (
+              <div key={s.l} className="stat-box border border-white/10">
+                <div className={`text-sm font-black ${s.c}`}>{s.v}</div>
+                <div className="text-[7px] text-gray-600 uppercase tracking-wider">{s.l}</div>
+              </div>
+            ))}
+          </div>
           {wallet && <StatsBar />}
 
           {/* NFT Preview Carousel */}
@@ -522,21 +594,49 @@ export default function App() {
       )}
 
       {/* ═══ LEADERBOARD ═══ */}
-      {tab === "leader" && (
-        <section className="pt-16 pb-10 px-4 max-w-lg mx-auto">
-          <h2 className="text-xl font-black text-center text-quantum-gold mb-4">🏆 Leaderboard</h2>
-          {wallet && <StatsBar />}
-          <div className="card">
-            <h3 className="text-xs font-bold text-quantum-gold mb-2">Scoring</h3>
-            <div className="space-y-1 text-[10px] text-gray-400">
-              <p>⚔️ PvP Win: +500pts • 🗺️ Quest: +difficulty×100pts</p>
-              <p>🤝 Referrals earn from all activity • 🏅 Badges unlock at milestones</p>
-            </div>
-          </div>
-        </section>
-      )}
+{tab === "leader" && (
+<section className="pt-16 pb-10 px-4 max-w-2xl mx-auto">
+<h2 className="text-xl font-black text-center text-quantum-gold mb-1">🏆 NFT Power Ranking</h2>
+<p className="text-center text-[10px] text-gray-500 mb-4">Live on-chain · QUANTUM NFT contract · Monad Mainnet</p>
+{wallet && <StatsBar />}
+{topNFTs.length === 0 ? (
+<div className="card text-center"><p className="text-gray-500 text-sm animate-pulse">Loading on-chain data...</p></div>
+) : (
+<div className="space-y-2">
+{topNFTs.slice(0,20).map((nft, i) => (
+<div key={nft.id} className="card flex items-center gap-3 py-2">
+<div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-black shrink-0 ${i===0?"bg-quantum-gold/20 text-quantum-gold border border-quantum-gold/40":i===1?"bg-gray-400/20 text-gray-300 border border-gray-400/40":i===2?"bg-orange-600/20 text-orange-400 border border-orange-600/40":"bg-white/5 text-gray-600"}`}>{i+1}</div>
+<div className="w-12 h-12 shrink-0 rounded-lg overflow-hidden border border-white/10" dangerouslySetInnerHTML={{__html: generateNFTSvg(nft.id, nft.rarity, nft.power, nft.speed, nft.luck)}} />
+<div className="flex-1 min-w-0">
+<div className="flex items-center gap-2 mb-0.5 flex-wrap">
+<span className="text-xs font-bold text-quantum-cyan">#{nft.id}</span>
+<span className="text-[9px] px-1.5 py-0.5 rounded font-bold" style={{background: R_CLR[nft.rarity]+"20", color: R_CLR[nft.rarity]}}>{RARITY[nft.rarity]}</span>
+</div>
+<div className="flex gap-2 text-[9px]">
+<span className="text-quantum-cyan">PWR:<b>{nft.power}</b></span>
+<span className="text-quantum-green">SPD:<b>{nft.speed}</b></span>
+<span className="text-quantum-gold">LCK:<b>{nft.luck}</b></span>
+</div>
+<div className="text-[8px] text-gray-600 mt-0.5 truncate">
+<a href={"https://monadexplorer.com/address/"+nft.owner} target="_blank" rel="noopener noreferrer" className="text-gray-500 hover:text-quantum-cyan no-underline font-mono">{nft.owner.substring(0,10)}...</a>
+</div>
+</div>
+<a href={"https://monadexplorer.com/token/"+C.NFT+"?a="+nft.id} target="_blank" rel="noopener noreferrer" className="text-[9px] text-gray-600 hover:text-quantum-cyan no-underline shrink-0 ml-auto">↗</a>
+</div>
+))}
+<div className="card mt-3 bg-quantum-cyan/5 border-quantum-cyan/20">
+<div className="grid grid-cols-3 gap-2 text-center text-[10px]">
+<div><div className="font-bold text-quantum-gold">{nftSupply}/10K</div><div className="text-gray-600">Minted</div></div>
+<div><div className="font-bold text-quantum-green">{poolStaking}</div><div className="text-gray-600">Staking Pool</div></div>
+<div><div className="font-bold text-quantum-purple">{poolGame}</div><div className="text-gray-600">Game Pool</div></div>
+</div>
+</div>
+</div>
+)}
+</section>
+)}
 
-      {/* ═══ REFERRAL ═══ */}
+{/* ═══ REFERRAL ═══ */}
       {tab === "ref" && (
         <section className="pt-16 pb-10 px-4 max-w-md mx-auto">
           <h2 className="text-xl font-black text-center text-quantum-green mb-4">🤝 Referral</h2>
@@ -568,32 +668,51 @@ export default function App() {
 {!wallet ? (
 <div className="card text-center"><p className="text-gray-400 mb-3 text-sm">Connect wallet to view your NFTs</p><button onClick={conn} className="btn-primary bg-gradient-to-r from-quantum-cyan to-quantum-purple text-dark-900">🔌 Connect</button></div>
 ) : nftBal === "0" ? (
-<div className="card text-center"><p className="text-4xl mb-3">🎨</p><p className="text-gray-400 text-sm mb-3">You have no QUANTUM NFTs yet</p><button onClick={() => setTab("mint")} className="btn-primary bg-gradient-to-r from-quantum-gold to-quantum-pink text-white">🎨 Mint Now</button></div>
+<div className="card text-center"><p className="text-4xl mb-3">🎨</p><p className="text-gray-400 text-sm mb-3">You have no QUANTUM NFTs yet</p><button onClick={() => setTab("mint")} className="btn-primary bg-gradient-to-r from-quantum-gold to-quantum-pink text-white">🎨 Mint Now — 50 MON</button></div>
 ) : (
 <div>
 <p className="text-center text-xs text-gray-500 mb-4">You own <span className="text-quantum-gold font-bold">{nftBal}</span> QUANTUM NFT{nftBal !== "1" ? "s" : ""}</p>
 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-{Array.from({length: Math.min(parseInt(nftBal||"0"), 20)}, (_, i) => (
-<div key={i} className="card cursor-pointer hover:border-quantum-gold/40 transition-all hover:scale-[1.02]">
-<NFTPreview tokenId={i+1} rarity={i%6} power={30+(i+1)*5} speed={25+(i+1)*3} luck={5+(i+1)} />
+{(topNFTs.filter(n=>n.owner.toLowerCase()===wallet.toLowerCase()).length > 0 ? topNFTs.filter(n=>n.owner.toLowerCase()===wallet.toLowerCase()) : Array.from({length:Math.min(parseInt(nftBal||"0"),20)},(_,i)=>({id:i+1,rarity:i%6,power:30+(i+1)*5,speed:25+(i+1)*3,luck:5+(i+1),owner:wallet,mintTime:0}))).map(nft=>(
+<div key={nft.id} className="card hover:border-quantum-gold/40 transition-all hover:scale-[1.02]">
+<NFTPreview tokenId={nft.id} rarity={nft.rarity} power={nft.power} speed={nft.speed} luck={nft.luck} />
 <div className="mt-2 text-center">
-<p className="text-xs font-bold text-quantum-cyan">QUANTUM #{i+1}</p>
-<p className="text-[9px] text-gray-500 mb-1">{RARITY[i%6]}</p>
-<div className="flex gap-1 justify-center flex-wrap">
-<button onClick={() => { setQuestNft(String(i+1)); setTab("quest"); }} className="text-[8px] px-1.5 py-0.5 rounded bg-quantum-purple/10 text-quantum-purple border border-quantum-purple/20">🗺️ Quest</button>
-<button onClick={() => { setBattleNft(String(i+1)); setTab("pvp"); }} className="text-[8px] px-1.5 py-0.5 rounded bg-quantum-pink/10 text-quantum-pink border border-quantum-pink/20">⚔️ PvP</button>
+<p className="text-xs font-bold text-quantum-cyan">QUANTUM #{nft.id}</p>
+<p className="text-[9px] mb-1" style={{color:R_CLR[nft.rarity]}}>{RARITY[nft.rarity]}</p>
+<div className="flex gap-1 justify-center text-[8px] mb-1">
+<span className="text-quantum-cyan">PWR:{nft.power}</span>
+<span className="text-quantum-green">SPD:{nft.speed}</span>
+<span className="text-quantum-gold">LCK:{nft.luck}</span>
 </div>
+<div className="flex gap-1 justify-center flex-wrap">
+<button onClick={()=>{setQuestNft(String(nft.id));setTab("quest");}} className="text-[8px] px-1.5 py-0.5 rounded bg-quantum-purple/10 text-quantum-purple border border-quantum-purple/20">🗺️ Quest</button>
+<button onClick={()=>{setBattleNft(String(nft.id));setTab("pvp");}} className="text-[8px] px-1.5 py-0.5 rounded bg-quantum-pink/10 text-quantum-pink border border-quantum-pink/20">⚔️ PvP</button>
+</div>
+<a href={"https://monadexplorer.com/token/"+C.NFT+"?a="+nft.id} target="_blank" rel="noopener noreferrer" className="text-[8px] text-gray-600 hover:text-quantum-cyan no-underline block mt-1">Monad Explorer ↗</a>
 </div>
 </div>
 ))}
 </div>
-{parseInt(nftBal||"0") > 20 && <p className="text-center text-xs text-gray-500 mt-3">Showing first 20 of {nftBal} NFTs</p>}
+</div>
+)}
+{topNFTs.length > 0 && (
+<div className="card mt-4 bg-white/[0.02]">
+<h3 className="text-xs font-bold text-quantum-cyan mb-2">🌍 All {nftSupply} Minted NFTs (Top by Power)</h3>
+<div className="grid grid-cols-4 sm:grid-cols-8 gap-1">
+{topNFTs.slice(0,16).map(nft=>(
+<div key={nft.id} className="text-center py-1 rounded bg-white/[0.03] border border-white/[0.05] cursor-pointer hover:border-quantum-cyan/20" onClick={()=>setTab("leader")}>
+<div className="text-[8px] font-bold" style={{color:R_CLR[nft.rarity]}}>#{nft.id}</div>
+<div className="text-[7px] text-quantum-cyan">P:{nft.power}</div>
+</div>
+))}
+</div>
+<p className="text-[8px] text-center text-gray-600 mt-1 cursor-pointer hover:text-gray-400" onClick={()=>setTab("leader")}>View full ranking →</p>
 </div>
 )}
 </section>
 )}
 
-      {/* ═══ BRIDGE ═══ */}
+{/* ═══ BRIDGE ═══ */}
       {tab === "bridge" && (
         <section className="pt-16 pb-10 px-4 max-w-md mx-auto">
           <h2 className="text-xl font-black text-center text-quantum-cyan mb-4">🌐 Bridge QTM</h2>
@@ -606,16 +725,38 @@ export default function App() {
         </section>
       )}
 
-      {/* ═══ VLY ═══ */}
-      {tab === "vly" && (
-        <section className="pt-20 pb-10 px-4 max-w-sm mx-auto text-center">
-          <div className="text-5xl mb-2">💎</div>
-          <h2 className="text-2xl font-black text-quantum-gold tracking-[4px] mb-3">$VLY</h2>
-          <a href={L.vly} target="_blank" rel="noopener noreferrer"><button className="btn-primary bg-gradient-to-r from-quantum-gold to-quantum-pink text-white mb-3">🚀 Buy on DexScreener</button></a>
-        </section>
-      )}
+      {/* ═══ VLY / TOKENOMICS ═══ */}
+{tab === "vly" && (
+<section className="pt-16 pb-10 px-4 max-w-md mx-auto">
+<h2 className="text-xl font-black text-center text-quantum-gold mb-1">💎 QTM Tokenomics</h2>
+<p className="text-center text-[10px] text-gray-500 mb-4">Live on-chain · QUANTUM Token · Monad Mainnet</p>
+<div className="grid grid-cols-2 gap-3 mb-4">
+{[
+{v:"1B",l:"Total Supply",c:"text-quantum-cyan"},
+{v:qtmCirculating,l:"Circulating",c:"text-quantum-green"},
+{v:qtmBurnedAmt,l:"Burned 🔥",c:"text-quantum-pink"},
+{v:poolStaking,l:"Staking Pool",c:"text-quantum-purple"},
+{v:poolGame,l:"Game Pool",c:"text-quantum-gold"},
+{v:"100M",l:"Ecosystem",c:"text-blue-400"},
+].map(s=>(<div key={s.l} className="stat-box border border-white/10"><div className={`text-lg font-black ${s.c}`}>{s.v}</div><div className="text-[8px] text-gray-500 uppercase tracking-wider">{s.l}</div></div>))}
+</div>
+<div className="card mb-3">
+<h3 className="text-xs font-bold text-quantum-cyan mb-2">📊 Token Distribution</h3>
+{[{l:"Circulating (50%)",pct:50,c:"bg-quantum-cyan"},{l:"Staking Rewards (25%)",pct:25,c:"bg-quantum-purple"},{l:"Game Rewards (15%)",pct:15,c:"bg-quantum-gold"},{l:"Ecosystem Fund (10%)",pct:10,c:"bg-blue-500"}].map(d=>(
+<div key={d.l} className="mb-2">
+<div className="flex justify-between text-[9px] text-gray-400 mb-0.5"><span>{d.l}</span><span className="font-bold">{d.pct}%</span></div>
+<div className="w-full h-1.5 rounded-full bg-white/5"><div className={`h-full rounded-full ${d.c}`} style={{width:d.pct+"%"}} /></div>
+</div>
+))}
+</div>
+<div className="flex flex-col gap-2">
+<a href={L.vly} target="_blank" rel="noopener noreferrer" className="no-underline"><button className="btn-primary w-full bg-gradient-to-r from-quantum-gold to-quantum-pink text-white">📈 Trade on DexScreener</button></a>
+<a href={"https://monadexplorer.com/token/"+C.QTM} target="_blank" rel="noopener noreferrer" className="no-underline"><button className="btn-secondary w-full text-xs">🔍 View on Monad Explorer</button></a>
+</div>
+</section>
+)}
 
-      {/* ═══ PRIVACY ═══ */}
+{/* ═══ PRIVACY ═══ */}
       {tab === "privacy" && (
         <section className="pt-16 pb-10 px-4 max-w-xl mx-auto">
           <h2 className="text-xl font-black text-center text-quantum-cyan mb-4">🔒 Privacy</h2>
@@ -641,7 +782,7 @@ export default function App() {
             <a key={c.n} href={L.scan + c.a} target="_blank" rel="noopener noreferrer" className="text-[8px] text-gray-600 no-underline hover:text-gray-400">{c.n}: {sh(c.a)}</a>
           ))}
         </div>
-        <p className="text-center text-[8px] text-gray-700">QUANTUM • Monad • <span className="cursor-pointer hover:text-gray-500" onClick={() => setTab("privacy")}>Privacy</span> • 2026</p>
+        <p className="text-center text-[8px] text-gray-700">QUANTUM • Monad {blockNum && <span className="text-quantum-green font-mono text-[7px]">#{blockNum}</span>} • <span className="cursor-pointer hover:text-gray-500" onClick={() => setTab("privacy")}>Privacy</span> • 2026</p>
       </footer>
     </div>
   );
