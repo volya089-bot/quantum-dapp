@@ -215,8 +215,7 @@ export default function App() {
       prov.getBlockNumber().then(b=>setBlockNum(b.toLocaleString())).catch(()=>{});
     }, 12000);
     return () => clearInterval(iv);
-  }
-  // VLY Mainnet loader
+  }, []);
   useEffect(() => {
     (async () => {
       try {
@@ -240,10 +239,10 @@ export default function App() {
             if (accounts[0]) { const b = await vlyToken.balanceOf(accounts[0]); setVlyUserBal(Number(b)/1e18); }
           } catch(e) {}
         }
-      } catch(e) { console.log("VLY loader error:", e.message); }
+      } catch(e) { console.log("VLY loader err:", e.message); }
     })();
   }, []);
-, []);
+
 
 
   useEffect(() => {
@@ -771,11 +770,11 @@ export default function App() {
         <div style={{display:"flex",gap:"0.5rem",justifyContent:"center",marginTop:"0.8rem",flexWrap:"wrap"}}>
           <a href={"https://pancakeswap.finance/swap?outputCurrency="+VLY_CONTRACT+"&chain=monad"} target="_blank" rel="noopener noreferrer" style={{padding:"0.5rem 1.2rem",background:"linear-gradient(90deg,#a259ff,#00e5ff)",border:"none",borderRadius:"8px",color:"#fff",fontWeight:700,textDecoration:"none",fontSize:"0.9rem"}}>🥞 Buy on PancakeSwap</a>
           <a href={"https://monadexplorer.com/address/"+VLY_CONTRACT} target="_blank" rel="noopener noreferrer" style={{padding:"0.5rem 1.2rem",background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.2)",borderRadius:"8px",color:"#ccc",fontWeight:600,textDecoration:"none",fontSize:"0.9rem"}}>🔍 Explorer</a>
-          <a href={"https://monadexplorer.com/address/"+VLY_PAIR} target="_blank" rel="noopener noreferrer" style={{padding:"0.5rem 1.2rem",background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.2)",borderRadius:"8px",color:"#ccc",fontWeight:600,textDecoration:"none",fontSize:"0.9rem"}}>💧 Liquidity Pair</a>
+          <a href={"https://monadexplorer.com/address/"+VLY_PAIR} target="_blank" rel="noopener noreferrer" style={{padding:"0.5rem 1.2rem",background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.2)",borderRadius:"8px",color:"#ccc",fontWeight:600,textDecoration:"none",fontSize:"0.9rem"}}>💧 Pair</a>
         </div>
       </div>
       <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(155px,1fr))",gap:"0.8rem",marginBottom:"1.5rem"}}>
-        {[{label:"💰 Price",value:vlyPrice!=null?(vlyPrice<0.001?vlyPrice.toFixed(6):vlyPrice.toFixed(4))+" MON":"Loading…",sub:"per VLY"},{label:"📊 Market Cap",value:vlyMarketCap!=null?(vlyMarketCap>1e6?(vlyMarketCap/1e6).toFixed(2)+"M":vlyMarketCap.toFixed(0))+" MON":"Loading…",sub:"total supply × price"},{label:"💧 Liquidity",value:vlyLiquidity!=null?vlyLiquidity.toFixed(4)+" MON":"Loading…",sub:"PancakeSwap pool"},{label:"🏦 Supply",value:vlyCirculating!=null?(vlyCirculating/1e6).toFixed(1)+"M VLY":"100M VLY",sub:"total on-chain"},].map((s,i)=>(
+        {[{label:"💰 Price",value:vlyPrice!=null?(vlyPrice<0.001?vlyPrice.toFixed(6):vlyPrice.toFixed(4))+" MON":"Loading…",sub:"per VLY"},{label:"📊 Market Cap",value:vlyMarketCap!=null?(vlyMarketCap>1e6?(vlyMarketCap/1e6).toFixed(2)+"M":vlyMarketCap.toFixed(0))+" MON":"Loading…",sub:"supply × price"},{label:"💧 Liquidity",value:vlyLiquidity!=null?vlyLiquidity.toFixed(4)+" MON":"Loading…",sub:"PancakeSwap pool"},{label:"🏦 Supply",value:vlyCirculating!=null?(vlyCirculating/1e6).toFixed(1)+"M VLY":"100M VLY",sub:"total on-chain"},].map((s,i)=>(
           <div key={i} style={{background:"rgba(162,89,255,0.1)",border:"1px solid rgba(162,89,255,0.3)",borderRadius:"12px",padding:"1rem",textAlign:"center"}}>
             <div style={{color:"#888",fontSize:"0.75rem",marginBottom:"0.3rem"}}>{s.label}</div>
             <div style={{fontSize:"1.1rem",fontWeight:700,color:"#e0e0e0"}}>{s.value}</div>
@@ -786,7 +785,7 @@ export default function App() {
       {vlyUserBal!=null&&(<div style={{background:"rgba(0,229,255,0.08)",border:"1px solid rgba(0,229,255,0.3)",borderRadius:"12px",padding:"1rem",marginBottom:"1.5rem",textAlign:"center"}}><div style={{color:"#00e5ff",fontWeight:700,fontSize:"1.1rem"}}>💼 Your VLY: {vlyUserBal.toFixed(2)} VLY</div>{vlyPrice&&<div style={{color:"#888",fontSize:"0.8rem",marginTop:"0.3rem"}}>≈ {(vlyUserBal*vlyPrice).toFixed(4)} MON</div>}</div>)}
       <div style={{background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:"12px",padding:"1.2rem",marginBottom:"1.5rem"}}>
         <h3 style={{margin:"0 0 1rem",color:"#fff",fontSize:"1rem",fontWeight:700}}>📊 VLY Tokenomics</h3>
-        {[{v:"30M",label:"Community & Ecosystem",pct:30,color:"#a259ff"},{v:"25M",label:"Liquidity & DEX",pct:25,color:"#00e5ff"},{v:"20M",label:"Team & Development",pct:20,color:"#ff6b6b"},{v:"15M",label:"Presale (LBT holders)",pct:15,color:"#ffd166"},{v:"10M",label:"Reserve & Treasury",pct:10,color:"#06d6a0"},].map((row,i)=>(
+        {[{v:"30M",label:"Community & Ecosystem",pct:30,color:"#a259ff"},{v:"25M",label:"Liquidity & DEX",pct:25,color:"#00e5ff"},{v:"20M",label:"Team & Dev",pct:20,color:"#ff6b6b"},{v:"15M",label:"Presale (LBT)",pct:15,color:"#ffd166"},{v:"10M",label:"Reserve",pct:10,color:"#06d6a0"},].map((row,i)=>(
           <div key={i} style={{marginBottom:"0.8rem"}}>
             <div style={{display:"flex",justifyContent:"space-between",marginBottom:"0.3rem"}}><span style={{color:"#ccc",fontSize:"0.85rem"}}>{row.label}</span><span style={{color:"#fff",fontWeight:600,fontSize:"0.85rem"}}>{row.v} ({row.pct}%)</span></div>
             <div style={{background:"rgba(255,255,255,0.08)",borderRadius:"4px",height:"6px",overflow:"hidden"}}><div style={{width:row.pct+"%",height:"100%",background:row.color,borderRadius:"4px"}}/></div>
@@ -795,15 +794,13 @@ export default function App() {
       </div>
       <div style={{background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:"12px",padding:"1.2rem"}}>
         <h3 style={{margin:"0 0 0.8rem",color:"#fff",fontSize:"1rem",fontWeight:700}}>🚀 How to Get VLY</h3>
-        <div style={{display:"flex",flexDirection:"column",gap:"0.6rem"}}>
-          {[{icon:"🥞",title:"Buy on PancakeSwap",desc:"Swap MON → VLY on Monad mainnet",link:"https://pancakeswap.finance/swap?outputCurrency="+VLY_CONTRACT+"&chain=monad"},{icon:"🎯",title:"Participate in LBT Presale",desc:"Buy LBT at presale.warrify.io using VLY",link:"https://presale.warrify.io"},{icon:"⚔️",title:"Win PvP Battles",desc:"Earn QTM → redeem for VLY rewards (soon)",link:null},].map((item,i)=>(
-            <div key={i} style={{display:"flex",alignItems:"center",gap:"0.8rem",padding:"0.8rem",background:"rgba(255,255,255,0.04)",borderRadius:"8px",border:"1px solid rgba(255,255,255,0.08)"}}>
-              <span style={{fontSize:"1.4rem"}}>{item.icon}</span>
-              <div style={{flex:1}}><div style={{color:"#fff",fontWeight:600,fontSize:"0.9rem"}}>{item.title}</div><div style={{color:"#888",fontSize:"0.78rem"}}>{item.desc}</div></div>
-              {item.link&&<a href={item.link} target="_blank" rel="noopener noreferrer" style={{padding:"0.4rem 0.9rem",background:"rgba(162,89,255,0.3)",border:"1px solid rgba(162,89,255,0.5)",borderRadius:"6px",color:"#a259ff",fontWeight:600,textDecoration:"none",fontSize:"0.8rem",whiteSpace:"nowrap"}}>Open →</a>}
-            </div>
-          ))}
-        </div>
+        {[{icon:"🥞",title:"Buy on PancakeSwap",desc:"Swap MON → VLY on Monad mainnet",link:"https://pancakeswap.finance/swap?outputCurrency="+VLY_CONTRACT+"&chain=monad"},{icon:"🎯",title:"LBT Presale",desc:"Buy LBT at presale.warrify.io using VLY",link:"https://presale.warrify.io"},{icon:"⚔️",title:"PvP Battles",desc:"Earn QTM → convert to VLY rewards (soon)",link:null},].map((item,i)=>(
+          <div key={i} style={{display:"flex",alignItems:"center",gap:"0.8rem",padding:"0.8rem",background:"rgba(255,255,255,0.04)",borderRadius:"8px",border:"1px solid rgba(255,255,255,0.08)",marginBottom:"0.6rem"}}>
+            <span style={{fontSize:"1.4rem"}}>{item.icon}</span>
+            <div style={{flex:1}}><div style={{color:"#fff",fontWeight:600,fontSize:"0.9rem"}}>{item.title}</div><div style={{color:"#888",fontSize:"0.78rem"}}>{item.desc}</div></div>
+            {item.link&&<a href={item.link} target="_blank" rel="noopener noreferrer" style={{padding:"0.4rem 0.9rem",background:"rgba(162,89,255,0.3)",border:"1px solid rgba(162,89,255,0.5)",borderRadius:"6px",color:"#a259ff",fontWeight:600,textDecoration:"none",fontSize:"0.8rem",whiteSpace:"nowrap"}}>Open →</a>}
+          </div>
+        ))}
       </div>
     </section>
   )}
