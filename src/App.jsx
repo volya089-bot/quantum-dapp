@@ -17,6 +17,10 @@ const L = {
 const LOGO = "https://peach-fascinating-dragonfly-692.mypinata.cloud/ipfs/bafybeifys4axhdlhmupjqlqbnocyeqtm3zojd7x6d4clthuwzhy47ygll4?pinataGatewayToken=bWYA3wgNwzuNFYwibilk9VG-RKvTcJ336mxOMdrpDzaD_vg5zmcufW_DY1vfQr4t";
 const MONAD = { chainId: "0x8F", chainName: "Monad Mainnet", rpcUrls: ["https://rpc.monad.xyz"], nativeCurrency: { name: "MON", symbol: "MON", decimals: 18 }, blockExplorerUrls: ["https://monadexplorer.com"] };
 
+const VLY_CONTRACT = "0x9459ddd1B70E51280DEf774650EcD04F0e24d234";
+const VLY_PAIR = "0xd87ae1f36a59c4f793dee766e2188ce3b9241e05";
+const MAINNET_RPC = "https://rpc.monad.xyz";
+
 const QTM_ABI = ["function balanceOf(address) view returns (uint256)","function approve(address,uint256) returns (bool)","function stake(uint256,uint256)","function unstake()","function pendingReward(address) view returns (uint256)","function stakes(address) view returns (uint256,uint256,uint256,uint256)","function setReferrer(address)","function referralCount(address) view returns (uint256)","function referralEarned(address) view returns (uint256)","function getPoolsInfo() view returns (uint256,uint256,uint256)","function totalSupply() view returns (uint256)","function totalBurned() view returns (uint256)"];
 const NFT_ABI = ["function totalSupply() view returns (uint256)","function mintPriceMON() view returns (uint256)","function mintPriceQTM() view returns (uint256)","function maxSupply() view returns (uint256)","function balanceOf(address) view returns (uint256)","function mintWithMON(uint256) payable","function mintWithQTM(uint256)","function nftData(uint256) view returns (uint8,uint256,uint256,uint256,uint256,uint256,uint256,string)"];
 const GAME_ABI = ["function startQuest(uint256,uint256)","function completeQuest()","function createBattle(uint256,uint256) returns (uint256)","function joinBattle(uint256,uint256)","function wins(address) view returns (uint256)","function losses(address) view returns (uint256)","function playerScore(address) view returns (uint256)","function activeQuests(address) view returns (uint256,uint256,uint256,bool)","function battleCount() view returns (uint256)","function battles(uint256) view returns (address,address,uint256,uint256,uint256,uint256,bool,address)"];
@@ -127,6 +131,11 @@ export default function App() {
   const [poolStaking, setPoolStaking] = useState("—");
   const [poolGame, setPoolGame] = useState("—");
   const [blockNum, setBlockNum] = useState(null);
+  const [vlyPrice, setVlyPrice] = useState(null);
+  const [vlyMarketCap, setVlyMarketCap] = useState(null);
+  const [vlyLiquidity, setVlyLiquidity] = useState(null);
+  const [vlyCirculating, setVlyCirculating] = useState(null);
+  const [vlyUserBal, setVlyUserBal] = useState(null);
   const [topNFTs, setTopNFTs] = useState([]);
   const [creationFee, setCreationFee] = useState("0");
   const [mintPrice, setMintPrice] = useState("0");
@@ -206,7 +215,35 @@ export default function App() {
       prov.getBlockNumber().then(b=>setBlockNum(b.toLocaleString())).catch(()=>{});
     }, 12000);
     return () => clearInterval(iv);
+  }
+  // VLY Mainnet loader
+  useEffect(() => {
+    (async () => {
+      try {
+        const mainProv = new ethers.JsonRpcProvider(MAINNET_RPC);
+        const vlyABI = ["function totalSupply() view returns (uint256)","function balanceOf(address) view returns (uint256)"];
+        const pairABI = ["function getReserves() view returns (uint112,uint112,uint32)","function token0() view returns (address)"];
+        const vlyToken = new ethers.Contract(VLY_CONTRACT, vlyABI, mainProv);
+        const pairContract = new ethers.Contract(VLY_PAIR, pairABI, mainProv);
+        const [ts, reserves, token0] = await Promise.all([vlyToken.totalSupply(), pairContract.getReserves(), pairContract.token0()]);
+        const isVLYToken1 = token0.toLowerCase() !== VLY_CONTRACT.toLowerCase();
+        const wmonRes = isVLYToken1 ? Number(reserves[0]) / 1e18 : Number(reserves[1]) / 1e18;
+        const vlyRes = isVLYToken1 ? Number(reserves[1]) / 1e18 : Number(reserves[0]) / 1e18;
+        const price = vlyRes > 0 ? wmonRes / vlyRes : 0;
+        setVlyPrice(price);
+        setVlyMarketCap(price * (Number(ts) / 1e18));
+        setVlyLiquidity(wmonRes * 2);
+        setVlyCirculating(Number(ts) / 1e18);
+        if (window.ethereum) {
+          try {
+            const accounts = await window.ethereum.request({ method: "eth_accounts" });
+            if (accounts[0]) { const b = await vlyToken.balanceOf(accounts[0]); setVlyUserBal(Number(b)/1e18); }
+          } catch(e) {}
+        }
+      } catch(e) { console.log("VLY loader error:", e.message); }
+    })();
   }, []);
+, []);
 
 
   useEffect(() => {
@@ -727,36 +764,49 @@ export default function App() {
 
       {/* ═══ VLY / TOKENOMICS ═══ */}
 {tab === "vly" && (
-<section className="pt-16 pb-10 px-4 max-w-md mx-auto">
-<h2 className="text-xl font-black text-center text-quantum-gold mb-1">💎 QTM Tokenomics</h2>
-<p className="text-center text-[10px] text-gray-500 mb-4">Live on-chain · QUANTUM Token · Monad Mainnet</p>
-<div className="grid grid-cols-2 gap-3 mb-4">
-{[
-{v:"1B",l:"Total Supply",c:"text-quantum-cyan"},
-{v:qtmCirculating,l:"Circulating",c:"text-quantum-green"},
-{v:qtmBurnedAmt,l:"Burned 🔥",c:"text-quantum-pink"},
-{v:poolStaking,l:"Staking Pool",c:"text-quantum-purple"},
-{v:poolGame,l:"Game Pool",c:"text-quantum-gold"},
-{v:"100M",l:"Ecosystem",c:"text-blue-400"},
-].map(s=>(<div key={s.l} className="stat-box border border-white/10"><div className={`text-lg font-black ${s.c}`}>{s.v}</div><div className="text-[8px] text-gray-500 uppercase tracking-wider">{s.l}</div></div>))}
-</div>
-<div className="card mb-3">
-<h3 className="text-xs font-bold text-quantum-cyan mb-2">📊 Token Distribution</h3>
-{[{l:"Circulating (50%)",pct:50,c:"bg-quantum-cyan"},{l:"Staking Rewards (25%)",pct:25,c:"bg-quantum-purple"},{l:"Game Rewards (15%)",pct:15,c:"bg-quantum-gold"},{l:"Ecosystem Fund (10%)",pct:10,c:"bg-blue-500"}].map(d=>(
-<div key={d.l} className="mb-2">
-<div className="flex justify-between text-[9px] text-gray-400 mb-0.5"><span>{d.l}</span><span className="font-bold">{d.pct}%</span></div>
-<div className="w-full h-1.5 rounded-full bg-white/5"><div className={`h-full rounded-full ${d.c}`} style={{width:d.pct+"%"}} /></div>
-</div>
-))}
-</div>
-<div className="flex flex-col gap-2">
-<a href={L.vly} target="_blank" rel="noopener noreferrer" className="no-underline"><button className="btn-primary w-full bg-gradient-to-r from-quantum-gold to-quantum-pink text-white">📈 Trade on DexScreener</button></a>
-<a href={"https://monadexplorer.com/token/"+C.QTM} target="_blank" rel="noopener noreferrer" className="no-underline"><button className="btn-secondary w-full text-xs">🔍 View on Monad Explorer</button></a>
-</div>
-</section>
-)}
-
-{/* ═══ PRIVACY ═══ */}
+    <section style={{padding:"1rem"}}>
+      <div style={{textAlign:"center",marginBottom:"1.5rem"}}>
+        <div style={{fontSize:"2.5rem",fontWeight:900,background:"linear-gradient(135deg,#a259ff,#00e5ff)",WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>🪙 VLY TOKEN</div>
+        <div style={{color:"#888",fontSize:"0.85rem",marginTop:"0.3rem",fontFamily:"monospace"}}>Monad Mainnet • {VLY_CONTRACT.slice(0,8)}...{VLY_CONTRACT.slice(-6)}</div>
+        <div style={{display:"flex",gap:"0.5rem",justifyContent:"center",marginTop:"0.8rem",flexWrap:"wrap"}}>
+          <a href={"https://pancakeswap.finance/swap?outputCurrency="+VLY_CONTRACT+"&chain=monad"} target="_blank" rel="noopener noreferrer" style={{padding:"0.5rem 1.2rem",background:"linear-gradient(90deg,#a259ff,#00e5ff)",border:"none",borderRadius:"8px",color:"#fff",fontWeight:700,textDecoration:"none",fontSize:"0.9rem"}}>🥞 Buy on PancakeSwap</a>
+          <a href={"https://monadexplorer.com/address/"+VLY_CONTRACT} target="_blank" rel="noopener noreferrer" style={{padding:"0.5rem 1.2rem",background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.2)",borderRadius:"8px",color:"#ccc",fontWeight:600,textDecoration:"none",fontSize:"0.9rem"}}>🔍 Explorer</a>
+          <a href={"https://monadexplorer.com/address/"+VLY_PAIR} target="_blank" rel="noopener noreferrer" style={{padding:"0.5rem 1.2rem",background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.2)",borderRadius:"8px",color:"#ccc",fontWeight:600,textDecoration:"none",fontSize:"0.9rem"}}>💧 Liquidity Pair</a>
+        </div>
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(155px,1fr))",gap:"0.8rem",marginBottom:"1.5rem"}}>
+        {[{label:"💰 Price",value:vlyPrice!=null?(vlyPrice<0.001?vlyPrice.toFixed(6):vlyPrice.toFixed(4))+" MON":"Loading…",sub:"per VLY"},{label:"📊 Market Cap",value:vlyMarketCap!=null?(vlyMarketCap>1e6?(vlyMarketCap/1e6).toFixed(2)+"M":vlyMarketCap.toFixed(0))+" MON":"Loading…",sub:"total supply × price"},{label:"💧 Liquidity",value:vlyLiquidity!=null?vlyLiquidity.toFixed(4)+" MON":"Loading…",sub:"PancakeSwap pool"},{label:"🏦 Supply",value:vlyCirculating!=null?(vlyCirculating/1e6).toFixed(1)+"M VLY":"100M VLY",sub:"total on-chain"},].map((s,i)=>(
+          <div key={i} style={{background:"rgba(162,89,255,0.1)",border:"1px solid rgba(162,89,255,0.3)",borderRadius:"12px",padding:"1rem",textAlign:"center"}}>
+            <div style={{color:"#888",fontSize:"0.75rem",marginBottom:"0.3rem"}}>{s.label}</div>
+            <div style={{fontSize:"1.1rem",fontWeight:700,color:"#e0e0e0"}}>{s.value}</div>
+            <div style={{color:"#666",fontSize:"0.7rem"}}>{s.sub}</div>
+          </div>
+        ))}
+      </div>
+      {vlyUserBal!=null&&(<div style={{background:"rgba(0,229,255,0.08)",border:"1px solid rgba(0,229,255,0.3)",borderRadius:"12px",padding:"1rem",marginBottom:"1.5rem",textAlign:"center"}}><div style={{color:"#00e5ff",fontWeight:700,fontSize:"1.1rem"}}>💼 Your VLY: {vlyUserBal.toFixed(2)} VLY</div>{vlyPrice&&<div style={{color:"#888",fontSize:"0.8rem",marginTop:"0.3rem"}}>≈ {(vlyUserBal*vlyPrice).toFixed(4)} MON</div>}</div>)}
+      <div style={{background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:"12px",padding:"1.2rem",marginBottom:"1.5rem"}}>
+        <h3 style={{margin:"0 0 1rem",color:"#fff",fontSize:"1rem",fontWeight:700}}>📊 VLY Tokenomics</h3>
+        {[{v:"30M",label:"Community & Ecosystem",pct:30,color:"#a259ff"},{v:"25M",label:"Liquidity & DEX",pct:25,color:"#00e5ff"},{v:"20M",label:"Team & Development",pct:20,color:"#ff6b6b"},{v:"15M",label:"Presale (LBT holders)",pct:15,color:"#ffd166"},{v:"10M",label:"Reserve & Treasury",pct:10,color:"#06d6a0"},].map((row,i)=>(
+          <div key={i} style={{marginBottom:"0.8rem"}}>
+            <div style={{display:"flex",justifyContent:"space-between",marginBottom:"0.3rem"}}><span style={{color:"#ccc",fontSize:"0.85rem"}}>{row.label}</span><span style={{color:"#fff",fontWeight:600,fontSize:"0.85rem"}}>{row.v} ({row.pct}%)</span></div>
+            <div style={{background:"rgba(255,255,255,0.08)",borderRadius:"4px",height:"6px",overflow:"hidden"}}><div style={{width:row.pct+"%",height:"100%",background:row.color,borderRadius:"4px"}}/></div>
+          </div>
+        ))}
+      </div>
+      <div style={{background:"rgba(255,255,255,0.03)",border:"1px solid rgba(255,255,255,0.1)",borderRadius:"12px",padding:"1.2rem"}}>
+        <h3 style={{margin:"0 0 0.8rem",color:"#fff",fontSize:"1rem",fontWeight:700}}>🚀 How to Get VLY</h3>
+        <div style={{display:"flex",flexDirection:"column",gap:"0.6rem"}}>
+          {[{icon:"🥞",title:"Buy on PancakeSwap",desc:"Swap MON → VLY on Monad mainnet",link:"https://pancakeswap.finance/swap?outputCurrency="+VLY_CONTRACT+"&chain=monad"},{icon:"🎯",title:"Participate in LBT Presale",desc:"Buy LBT at presale.warrify.io using VLY",link:"https://presale.warrify.io"},{icon:"⚔️",title:"Win PvP Battles",desc:"Earn QTM → redeem for VLY rewards (soon)",link:null},].map((item,i)=>(
+            <div key={i} style={{display:"flex",alignItems:"center",gap:"0.8rem",padding:"0.8rem",background:"rgba(255,255,255,0.04)",borderRadius:"8px",border:"1px solid rgba(255,255,255,0.08)"}}>
+              <span style={{fontSize:"1.4rem"}}>{item.icon}</span>
+              <div style={{flex:1}}><div style={{color:"#fff",fontWeight:600,fontSize:"0.9rem"}}>{item.title}</div><div style={{color:"#888",fontSize:"0.78rem"}}>{item.desc}</div></div>
+              {item.link&&<a href={item.link} target="_blank" rel="noopener noreferrer" style={{padding:"0.4rem 0.9rem",background:"rgba(162,89,255,0.3)",border:"1px solid rgba(162,89,255,0.5)",borderRadius:"6px",color:"#a259ff",fontWeight:600,textDecoration:"none",fontSize:"0.8rem",whiteSpace:"nowrap"}}>Open →</a>}
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  )}
       {tab === "privacy" && (
         <section className="pt-16 pb-10 px-4 max-w-xl mx-auto">
           <h2 className="text-xl font-black text-center text-quantum-cyan mb-4">🔒 Privacy</h2>
