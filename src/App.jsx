@@ -18,7 +18,7 @@ const LOGO = "https://peach-fascinating-dragonfly-692.mypinata.cloud/ipfs/bafybe
 const MONAD = { chainId: "0x8F", chainName: "Monad Mainnet", rpcUrls: ["https://rpc.monad.xyz"], nativeCurrency: { name: "MON", symbol: "MON", decimals: 18 }, blockExplorerUrls: ["https://monadexplorer.com"] };
 
 const QTM_ABI = ["function balanceOf(address) view returns (uint256)","function approve(address,uint256) returns (bool)","function stake(uint256,uint256)","function unstake()","function pendingReward(address) view returns (uint256)","function stakes(address) view returns (uint256,uint256,uint256,uint256)","function setReferrer(address)","function referralCount(address) view returns (uint256)","function referralEarned(address) view returns (uint256)","function getPoolsInfo() view returns (uint256,uint256,uint256)","function totalSupply() view returns (uint256)","function totalBurned() view returns (uint256)"];
-const NFT_ABI = ["function totalSupply() view returns (uint256)","function mintPriceMON() view returns (uint256)","function balanceOf(address) view returns (uint256)","function mintWithMON(uint256) payable","function nftData(uint256) view returns (uint8,uint256,uint256,uint256,uint256,uint256,uint256,string)"];
+const NFT_ABI = ["function totalSupply() view returns (uint256)","function mintPriceMON() view returns (uint256)","function mintPriceQTM() view returns (uint256)","function maxSupply() view returns (uint256)","function balanceOf(address) view returns (uint256)","function mintWithMON(uint256) payable","function mintWithQTM(uint256)","function nftData(uint256) view returns (uint8,uint256,uint256,uint256,uint256,uint256,uint256,string)"];
 const GAME_ABI = ["function startQuest(uint256,uint256)","function completeQuest()","function createBattle(uint256,uint256) returns (uint256)","function joinBattle(uint256,uint256)","function wins(address) view returns (uint256)","function losses(address) view returns (uint256)","function playerScore(address) view returns (uint256)","function activeQuests(address) view returns (uint256,uint256,uint256,bool)","function battleCount() view returns (uint256)","function battles(uint256) view returns (address,address,uint256,uint256,uint256,uint256,bool,address)"];
 
 const QUESTS = [
@@ -155,6 +155,8 @@ export default function App() {
   useEffect(() => { const h = (e) => { e.preventDefault(); setInstallPrompt(e); }; window.addEventListener("beforeinstallprompt", h); return () => window.removeEventListener("beforeinstallprompt", h); }, []);
   useEffect(() => { const p = new URLSearchParams(window.location.search); const r = p.get("ref"); if (r) localStorage.setItem("qtm_referrer", r); }, []);
   useEffect(() => { const l = localStorage.getItem("qtm_daily_last"); const s = parseInt(localStorage.getItem("qtm_daily_streak") || "0"); setDailyClaimed(l === new Date().toDateString()); setDailyDay(s % 7); }, []);
+  useEffect(() => { const load = async () => { if (!window.ethers) return; try { const prov = new window.ethers.JsonRpcProvider("https://rpc.monad.xyz"); const nft = new window.ethers.Contract(C.NFT, NFT_ABI, prov); const [sup, prMON] = await Promise.all([nft.totalSupply().catch(() => 0n), nft.mintPriceMON().catch(() => 0n)]); setNftSupply(String(sup)); setMintPrice(String(prMON)); } catch(e) { console.warn("p:", e); } }; const t = setTimeout(load, 800); return () => clearTimeout(t); }, []);
+
 
   useEffect(() => {
     if (!window.ethereum) return;
@@ -228,7 +230,7 @@ export default function App() {
   const tabs = [
     { id: "home", l: "HOME" }, { id: "mint", l: "🎨MINT" }, { id: "stake", l: "🏦STK" },
     { id: "quest", l: "🗺️Q" }, { id: "pvp", l: "⚔️PVP" }, { id: "leader", l: "🏆TOP" },
-    { id: "ref", l: "🤝REF" }, { id: "bridge", l: "🌐" }, { id: "vly", l: "💎" },
+    { id: "ref", l: "🤝REF" }, { id: "my-nfts", l: "🖼️NFTs" }, { id: "bridge", l: "🌐" }, { id: "vly", l: "💎" },
   ];
 
   // ═══ STATS BAR ═══
@@ -558,6 +560,38 @@ export default function App() {
           )}
         </section>
       )}
+
+{/* ═══ MY NFTS ═══ */}
+{tab === "my-nfts" && (
+<section className="pt-16 pb-10 px-4 max-w-4xl mx-auto">
+<h2 className="text-xl font-black text-center text-quantum-gold mb-4">🖼️ My Quantum NFTs</h2>
+{!wallet ? (
+<div className="card text-center"><p className="text-gray-400 mb-3 text-sm">Connect wallet to view your NFTs</p><button onClick={conn} className="btn-primary bg-gradient-to-r from-quantum-cyan to-quantum-purple text-dark-900">🔌 Connect</button></div>
+) : nftBal === "0" ? (
+<div className="card text-center"><p className="text-4xl mb-3">🎨</p><p className="text-gray-400 text-sm mb-3">You have no QUANTUM NFTs yet</p><button onClick={() => setTab("mint")} className="btn-primary bg-gradient-to-r from-quantum-gold to-quantum-pink text-white">🎨 Mint Now</button></div>
+) : (
+<div>
+<p className="text-center text-xs text-gray-500 mb-4">You own <span className="text-quantum-gold font-bold">{nftBal}</span> QUANTUM NFT{nftBal !== "1" ? "s" : ""}</p>
+<div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+{Array.from({length: Math.min(parseInt(nftBal||"0"), 20)}, (_, i) => (
+<div key={i} className="card cursor-pointer hover:border-quantum-gold/40 transition-all hover:scale-[1.02]">
+<NFTPreview tokenId={i+1} rarity={i%6} power={30+(i+1)*5} speed={25+(i+1)*3} luck={5+(i+1)} />
+<div className="mt-2 text-center">
+<p className="text-xs font-bold text-quantum-cyan">QUANTUM #{i+1}</p>
+<p className="text-[9px] text-gray-500 mb-1">{RARITY[i%6]}</p>
+<div className="flex gap-1 justify-center flex-wrap">
+<button onClick={() => { setQuestNft(String(i+1)); setTab("quest"); }} className="text-[8px] px-1.5 py-0.5 rounded bg-quantum-purple/10 text-quantum-purple border border-quantum-purple/20">🗺️ Quest</button>
+<button onClick={() => { setBattleNft(String(i+1)); setTab("pvp"); }} className="text-[8px] px-1.5 py-0.5 rounded bg-quantum-pink/10 text-quantum-pink border border-quantum-pink/20">⚔️ PvP</button>
+</div>
+</div>
+</div>
+))}
+</div>
+{parseInt(nftBal||"0") > 20 && <p className="text-center text-xs text-gray-500 mt-3">Showing first 20 of {nftBal} NFTs</p>}
+</div>
+)}
+</section>
+)}
 
       {/* ═══ BRIDGE ═══ */}
       {tab === "bridge" && (
